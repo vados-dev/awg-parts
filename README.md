@@ -13,9 +13,7 @@ sudo modprobe amneziawg
 ## Documentation
 
 | Document | Description |
-|---|---|
-
-## Companion library
+| -------- | ----------- |
 
 ## License
 
