@@ -5,7 +5,7 @@ shopt -s extglob
 export LC_ALL=C
 
 SELF="$(readlink -f "${BASH_SOURCE[0]}")"
-SELF_DIR="$(dirname "$(readlink -f ${BASH_SOURCE[0]})")" #-> можно и так: SELF_DIR="$(dirname "${SELF}")"
+SELF_DIR="$(dirname "${SELF}")"
 
 ME_SELF="${SELF##*/}"
 ME_CLEAN="${ME_SELF%.*}"
