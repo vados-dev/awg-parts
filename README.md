@@ -1,5 +1,7 @@
 # VPN-parts
 
+Куски разного кода для сборки и настройки под голый Centos 10 Stream.
+
 ## Quick start
 
 ```shell
@@ -18,3 +20,4 @@ sudo modprobe amneziawg
 ## License
 
 GPL-2.0 — see [LICENSE](LICENSE).
+
