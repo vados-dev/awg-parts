@@ -1,0 +1,18 @@
+[Unit]
+After=syslog.target network-online.target
+Wants=awg-quick.target
+ConditionPathIsDirectory=/etc/amnezia/amneziawg
+
+[Service]
+Type=forking
+PIDFile=/etc/wg-dashboard/gunicorn.pid
+WorkingDirectory=/etc/wg-dashboard
+ExecStart=/etc/wg-dashboard/wgd.sh start
+ExecStop=/etc/wg-dashboard/wgd.sh stop
+ExecReload=/etc/wg-dashboard/wgd.sh restart
+TimeoutSec=120
+PrivateTmp=yes
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
