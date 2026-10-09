@@ -13,7 +13,7 @@ die() { printf '\033[1;31m%s\033[0m\n' "$me_name: $*" >&2; exit 1; }
 fw_cmd() { [[ "$dbg" = 0 ]] > /dev/null 2>&1 && color_cmd firewall-cmd "$@" || dbg_cmd firewall-cmd "$@"; }
 
 fwcmd() {
-    case "${0##*/}" in
+    case "${me_name}" in
     fwreload)
         fw_cmd --reload
         ;;
