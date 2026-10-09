@@ -12,7 +12,12 @@ export LC_ALL=C
 #SELF="$(dirname $(readlink -f "${BASH_SOURCE[0]}"))"
 SELF="$(readlink -f "${BASH_SOURCE[0]}")"
 
-SELF_DIR="$(dirname "${SELF}")"
+SELF="$(readlink -f "${BASH_SOURCE[0]}")"
+SELF_DIR="$(dirname "$(readlink -f ${BASH_SOURCE[0]})")"
+#SELF_DIR="$(dirname "${SELF}")"
+echo ${SELF_DIR}
+exit 0
+
 export PATH="${SELF_DIR}:$PATH"
 
 ME_SELF="${SELF##*/}"
