@@ -9,16 +9,8 @@ set -e -o pipefail
 shopt -s extglob
 export LC_ALL=C
 
-#SELF="$(dirname $(readlink -f "${BASH_SOURCE[0]}"))"
 SELF="$(readlink -f "${BASH_SOURCE[0]}")"
-
-SELF="$(readlink -f "${BASH_SOURCE[0]}")"
-SELF_DIR="$(dirname "$(readlink -f ${BASH_SOURCE[0]})")"
-#SELF_DIR="$(dirname "${SELF}")"
-echo ${SELF_DIR}
-echo ${SELF}
-exit 0
-
+SELF_DIR="$(dirname "$(readlink -f ${BASH_SOURCE[0]})")" #-> можно и так: SELF_DIR="$(dirname "${SELF}")"
 export PATH="${SELF_DIR}:$PATH"
 
 ME_SELF="${SELF##*/}"
