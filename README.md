@@ -19,4 +19,4 @@ sudo modprobe amneziawg
 
 ## License
 
-GPL-2.0 — see [COPYING](COPYING).
+GPL-2.0 — see [LICENSE](LICENSE).

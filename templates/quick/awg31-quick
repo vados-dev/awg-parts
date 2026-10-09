@@ -112,7 +112,7 @@ del_if() {
 	local table
 	[[ $HAVE_SET_DNS -eq 0 ]] || unset_dns
 	[[ $HAVE_SET_FIREWALL -eq 0 ]] || remove_firewall
-	if [[ -z $TABLE || $TABLE == auto ]] && get_fwmark table && [[ $(${awg_exec} show "$INTERFACE" allowed-ips) =~ /0(\ |$'\n'|$) ]]; then
+	if [[ -z $TABLE || $TABLE == auto ]] && get_fwmark table && [[ $(${LNK_NAME} show "$INTERFACE" allowed-ips) =~ /0(\ |$'\n'|$) ]]; then
 		while [[ $(ip -4 rule show 2>/dev/null) == *"lookup $table"* ]]; do
 			cmd ip -4 rule delete table $table
 		done
@@ -145,7 +145,7 @@ set_mtu_up() {
 		[[ $endpoint =~ ^\[?([a-z0-9:.]+)\]?:[0-9]+$ ]] || continue
 		output="$(ip route get "${BASH_REMATCH[1]}" || true)"
 		[[ ( $output =~ mtu\ ([0-9]+) || ( $output =~ dev\ ([^ ]+) && $(ip link show dev "${BASH_REMATCH[1]}") =~ mtu\ ([0-9]+) ) ) && ${BASH_REMATCH[1]} -gt $mtu ]] && mtu="${BASH_REMATCH[1]}"
-	done < <(${awg_exec} show "$INTERFACE" endpoints)
+	done < <(${LNK_NAME} show "$INTERFACE" endpoints)
 	if [[ $mtu -eq 0 ]]; then
 		read -r output < <(ip route show default || true) || true
 		[[ ( $output =~ mtu\ ([0-9]+) || ( $output =~ dev\ ([^ ]+) && $(ip link show dev "${BASH_REMATCH[1]}") =~ mtu\ ([0-9]+) ) ) && ${BASH_REMATCH[1]} -gt $mtu ]] && mtu="${BASH_REMATCH[1]}"
@@ -193,7 +193,7 @@ add_route() {
 
 get_fwmark() {
 	local fwmark
-	fwmark="$(${awg_exec} show "$INTERFACE" fwmark)" || return 1
+	fwmark="$(${LNK_NAME} show "$INTERFACE" fwmark)" || return 1
 	[[ -n $fwmark && $fwmark != off ]] || return 1
 	printf -v "$1" "%d" "$fwmark"
 	return 0
@@ -229,7 +229,7 @@ add_default() {
 		while [[ -n $(ip -4 route show table $table 2>/dev/null) || -n $(ip -6 route show table $table 2>/dev/null) ]]; do
 			((table++))
 		done
-		cmd ${awg_exec} set "$INTERFACE" fwmark $table
+		cmd ${LNK_NAME} set "$INTERFACE" fwmark $table
 	fi
 	local proto=-4 iptables=iptables pf=ip
 	[[ $1 == *:* ]] && proto=-6 iptables=ip6tables pf=ip6
@@ -260,8 +260,7 @@ add_default() {
 	return 0
 }
 
-set_config() {
-	cmd ${awg_exec} setconf "$INTERFACE" <(echo "$WG_CONFIG")
+set_config() { cmd ${LNK_NAME} setconf "$INTERFACE" <(echo "$WG_CONFIG")
 }
 
 save_config() {
@@ -291,7 +290,7 @@ save_config() {
 	done
 	old_umask="$(umask)"
 	umask 077
-	current_config="$(cmd ${awg_exec} showconf "$INTERFACE")"
+	current_config="$(cmd ${LNK_NAME} showconf "$INTERFACE")"
 	trap 'rm -f "$CONFIG_FILE.tmp"; exit' INT TERM EXIT
 	echo "${current_config/\[Interface\]$'\n'/$new_config}" > "$CONFIG_FILE.tmp" || die "Could not write configuration file"
 	sync "$CONFIG_FILE.tmp"
@@ -348,7 +347,7 @@ cmd_up() {
 	done
 	set_mtu_up
 	set_dns
-	for i in $(while read -r _ i; do for i in $i; do [[ $i =~ ^[0-9a-z:.]+/[0-9]+$ ]] && echo "$i"; done; done < <(${awg_exec} show "$INTERFACE" allowed-ips) | sort -nr -k 2 -t /); do
+	for i in $(while read -r _ i; do for i in $i; do [[ $i =~ ^[0-9a-z:.]+/[0-9]+$ ]] && echo "$i"; done; done < <(${LNK_NAME} show "$INTERFACE" allowed-ips) | sort -nr -k 2 -t /); do
 		add_route "$i"
 	done
 	execute_hooks "${POST_UP[@]}"
@@ -356,7 +355,7 @@ cmd_up() {
 }
 
 cmd_down() {
-	[[ " $(${awg_exec} show interfaces) " == *" $INTERFACE "* ]] || die "\`$INTERFACE' is not a WireGuard interface"
+	[[ " $(${LNK_NAME} show interfaces) " == *" $INTERFACE "* ]] || die "\`$INTERFACE' is not a WireGuard interface"
 	execute_hooks "${PRE_DOWN[@]}"
 	[[ $SAVE_CONFIG -eq 0 ]] || save_config
 	del_if
@@ -366,7 +365,7 @@ cmd_down() {
 }
 
 cmd_save() {
-	[[ " $(${awg_exec} show interfaces) " == *" $INTERFACE "* ]] || die "\`$INTERFACE' is not a WireGuard interface"
+	[[ " $(${LNK_NAME} show interfaces) " == *" $INTERFACE "* ]] || die "\`$INTERFACE' is not a WireGuard interface"
 	save_config
 }
 

@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+
+dbg=0
+me="${0##*/}"
+
+dbg_cmd() { printf '\033[1;1m%s\033[0m\n' "[#] $*" >&2; "$@"; }
+color_cmd() { local cmd="$*"; { out=$($cmd); exit_code=$?; } && printf '\033[1;32m%s\033[0m\n' "$out" || { printf '\033[1;31m%s\033[0m\n' "$out"; exit "$exit_code"; }; }
+die() { printf '\033[1;31m%s\033[0m\n' "$me: $*" >&2; exit 1; }
+
+fw_cmd() {
+    [[ "$dbg" = 0 ]] > /dev/null 2>&1 && color_cmd firewall-cmd "$@" || dbg_cmd firewall-cmd "$@"
+}
+
+# Underscore → hyphen в значениях, чтобы '-' работал только как разделитель токенов
+v() { printf '%s' "${1//_/-}"; }
+
+
+fwcmd() {
+    case "${me}" in
+    fwreload)
+        fw_cmd --reload
+        ;;
+    fwperm)
+        fw_cmd --permanent "$@"
+        fwreload
+        ;;
+    *)
+        fw_cmd "$@"
+        ;;
+    esac
+}
+
+fwcmd "$@"
+
+#color_cmd firewall-cmd "$@"
