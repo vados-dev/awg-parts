@@ -1,4 +1,4 @@
-# VPN-helpers
+# VPN-parts
 
 ## Quick start
 
