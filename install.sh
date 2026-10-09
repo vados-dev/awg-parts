@@ -1,19 +1,11 @@
 #!/usr/bin/env bash
 
-# SPDX-License-Identifier: GPL-2.0
-#
-# Copyright (C) 2015-2020 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
-#
-
 set -e -o pipefail
 shopt -s extglob
 export LC_ALL=C
 
-#SELF="$(dirname $(readlink -f "${BASH_SOURCE[0]}"))"
 SELF="$(readlink -f "${BASH_SOURCE[0]}")"
-
-SELF_DIR="$(dirname "${SELF}")"
-export PATH="${SELF_DIR}:$PATH"
+SELF_DIR="$(dirname "$(readlink -f ${BASH_SOURCE[0]})")" #-> можно и так: SELF_DIR="$(dirname "${SELF}")"
 
 ME_SELF="${SELF##*/}"
 ME_CLEAN="${ME_SELF%.*}"
@@ -36,6 +28,8 @@ ARGS=( "$@" )
 
 #-> Имя оригинального бинарника из amneziawg-tools
 AWG_NAME="awg"
+#-> Имя СКРИПТА для для которого создается симлинк
+QUICK_NAME="${1:-awg-quick}"
 #-> Имя ожидаемого симлинка, получено из имени этого файла
 LNK_NAME="${PROGRAM%-*}" #-> Запаска: #LNK_NAME="$(echo "$ME_CLEAN" | cut -d'-' -f1)"
 
