@@ -36,8 +36,8 @@ ARGS=( "$@" )
 
 #-> Имя оригинального бинарника из amneziawg-tools
 AWG_NAME="awg"
-#-> Имя j;blftvjuj симлинка, получено из имени этого файла
-LNK_NAME="${PROGRAM%-*}" #-> Запаска: #AWG_SL="$(echo "$me" | cut -d'-' -f1)"
+#-> Имя ожидаемого симлинка, получено из имени этого файла
+LNK_NAME="${PROGRAM%-*}" #-> Запаска: #LNK_NAME="$(echo "$ME_CLEAN" | cut -d'-' -f1)"
 
 cmd()  { printf '  [\033[1;33m✨\033[0m]\033[1m %s \033[0m\n' "$*" >&2; "$@"; }
 log()  { printf ' \033[1;34m 📋 INFO:\033[0;8m [%s] - %s.\033[0m\n' "$PROGRAM" "$*"; }
