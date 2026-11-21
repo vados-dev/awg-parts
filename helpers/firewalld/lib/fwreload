@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+color_cmd() { local cmd="$*"; { out=$($cmd); exit_code=$?; } && printf '\033[1;32m%s\033[0m\n' "$out" || { printf '\033[1;31m%s\033[0m\n' "$out"; exit "$exit_code"; }; }
+color_cmd firewall-cmd --reload

@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+
+ARCHIVE=all-zones.tar.gz
+URL=http://www.ipdeny.com/ipblocks/data/countries/$ARCHIVE
+
+confirm() {
+#  [ "$ASSUME_YES" = "1" ] && return 0
+  [ -t 0 ] || return 1 #die "Нет интерактивного терминала — используйте -y"
+  read -r -p "$1 [y/N] " a; [ "$a" = "y" ] || { echo "Отменено пользователем"; exit 0; }
+}
+confirm "Обновить известные IP зоны?"
+
+echo "Обновляю..."
+
+# (re)download all-zones archive
+cd $HOME
+curl -fsSL -o $ARCHIVE $URL
+
+echo "Распаковка в $HOME/zones/"
+mkdir -p zones/
+tar xzf $ARCHIVE -C zones/
+
+echo "Готово"
