@@ -43,3 +43,14 @@ output/
 # in the tagged commit (see docs/SIGNING_DESIGN.md).
 *.key
 .playwright-cli/
+
+# Локальные артефакты сборки/выгрузки
+#тесты2/
+*.tar.gz
+*.bundle
+
+# Каталог выкладки — артефакты сборки, не в репозиторий
+#авг2_клоуд/
+
+# Сборка из src/ (./build.sh)
+dist/

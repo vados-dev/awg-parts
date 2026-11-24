@@ -121,4 +121,4 @@ fwcmd "$@"
 #if [[ "$RUN_CMD" == "test_cmd" ]]; then run_test_cmd $ARGS; exit $HELP_EXIT_RC; fi
 #if [[ "$RUN_CMD" == "def_cmd" ]]; then def_cmd $ARGS; exit $HELP_EXIT_RC; fi
 #if [[ "$RUN_CMD" == "run_cmd" ]]; then run_cmd $RUN $ARGS; exit $HELP_EXIT_RC; fi
-#if [[ -z "$RUN_CMD" ]]; then color_cmd usage; else ARGS="$1"; run_once "$ARGS"; exit $HELP_EXIT_RC; fi
+#if [[ -z "$RUN_CMD" ]]; then color_cmd usage; else ARGS="$1"; run_once "$ARGS"; exit $HELP_EXIT_RC;
