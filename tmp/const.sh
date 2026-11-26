@@ -1,0 +1,263 @@
+# Пути и константы. Все имена файлов совпадают с прежними версиями awg2:
+# новая версия подхватывает уже работающий сервер без миграции.
+
+SCRIPT_PATH="/usr/local/bin/awg2"
+STATE_DIR="/var/lib/awg2"
+LOG_FILE="/var/log/awg-manager.log"
+INSTALL_LOG="/var/log/awg2-install.log"
+
+# ── AmneziaWG ─────────────────────────────────────────────
+AWG_DIR="/etc/amnezia/amneziawg"
+AWG_IF="${AWG_IFACE:-awg31}"
+SERVER_CONF="$AWG_DIR/${AWG_IF}.conf"
+AWG_CONF_DIR="/etc/VPN/configs/${AWG_IF}"
+CLIENT_DIR="${AWG_CONF_DIR}/clients"                 # клиенты: /root/<имя>_awg2.conf | _awg3.conf
+AUTOSTART_DROPIN="/etc/systemd/system/awg31-quick@${AWG_IF}.service.d"
+MODULES_LOAD_FILE="/etc/modules-load.d/amneziawg.conf"
+SYSCTL_FORWARD_FILE="/etc/sysctl.d/97-amneziawg.conf"  #99-awg2.conf
+
+# Компоненты собираются из исходников апстрима через git + DKMS.
+MOD_REPO="https://github.com/vados-dev/amneziawg-linux-kernel-module-vds.git"
+TOOLS_REPO="https://github.com/amnezia-vpn/amneziawg-tools.git"
+MOD_NAME="amneziawg"
+MOD_DKMS_VER="3.1.20261113-02-vds"               # апстрим держит 1.0.0 во всех тегах
+MOD_SRC_DIR="/usr/src/${MOD_NAME}-${MOD_DKMS_VER}"
+MOD_TAG_FILE="$STATE_DIR/module_tag"
+TOOLS_TAG_FILE="$STATE_DIR/tools_tag"
+MOD_BACKUP_DIR="/var/backups/awg-mod"
+MOD_LOG="/var/log/awg-mod-update.log"
+MOD_FALLBACK_TAG="v3.1.20260906-vds"   # сборка с 6.1.0-7-amd64 (2026-09-06) — последняя, которая работала на всех ядрах Debian 12/13 и Ubuntu 24.04/24.10
+TOOLS_FALLBACK_TAG="v3.1.20260812-vds" # сборка с 6.1.0-7-amd64 (2026-08-12) — последняя, которая работала на всех ядрах Debian 12/13 и Ubuntu 24.04/24.10
+UPSTREAM_CACHE="$STATE_DIR/upstream_tags"
+COUNTRY_CACHE="$STATE_DIR/country"     # «NL 1791500000 2 NL=4,DE=1»: страна сервера по геосервисам (флаг в шапке панели)
+COUNTRY_MANUAL="$STATE_DIR/country_manual"   # страна, выбранная вручную, — главнее геосервисов
+UPSTREAM_TTL=21600
+
+# ── Обновление скрипта ────────────────────────────────────
+UPDATE_REPO_STABLE="vados-dev/awg-ms"
+UPDATE_REPO_BETA="vados-dev/awg-ms"
+UPDATE_CHANNEL_FILE="$STATE_DIR/channel"
+# Проверка версии в канале (4 КБ файла): бета выходит по нескольку раз в день —
+# раз в 6 часов уведомление бота о новой версии запаздывало на полдня
+UPDATE_CHECK_TTL=3600 UPDATE_CHECK_TTL_BETA=1200
+# Подпись сборок: awg2.sh.sig рядом с awg2.sh (ssh-keygen -Y sign, ставит
+# GitHub Actions). Ключ релизов вшит сюда — подменить сборку на зеркале
+# или по пути без закрытого ключа нельзя. Сборки старше UPDATE_SIG_SINCE
+# выходили без подписи.
+UPDATE_SIG_NS="vados-dev"
+UPDATE_SIGNER="awg-toolza-release"
+UPDATE_SIG_SINCE="v1.2.0"
+UPDATE_SIGNERS=(
+  "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHADSeu7b4UN3LpmJ3zIEV7xRCiSHMC4yipczB2Qrg8j"   # awg-toolza-release, 2026-11
+)
+
+# ── Бэкапы ────────────────────────────────────────────────
+# В домашнем каталоге того, кто запустил sudo: так было всегда, и уже
+# сделанные бэкапы лежат именно там.
+_real_home() {
+  local u home=""
+  u=$(logname 2>/dev/null || echo "${SUDO_USER:-}")
+  [[ -n "$u" ]] && home=$(getent passwd "$u" | cut -d: -f6)
+  echo "${home:-/root}"
+}
+BACKUP_DIR="$(_real_home)/awg_backup"
+
+# ── Туннели ───────────────────────────────────────────────
+# Номера таблиц маршрутизации — общие для всех версий awg2.
+T2S_TABLE=100
+WARP_TABLE=200
+XRAY_TABLE=201
+EXITS_TABLE=202
+EXITS_TABLE_BASE=210
+EXITS_TABLE_MAX=249
+
+WARP_IF="${WARP_IFACE:-warp0}"
+WARP_DIR="/etc/wgcf"
+WARP_CONF="/etc/wireguard/${WARP_IF}.conf"
+WARP_ACCOUNT="$WARP_DIR/wgcf-account.toml"
+WARP_PROFILE="$WARP_DIR/wgcf-profile.conf"
+WARP_STATE="$WARP_DIR/state"
+WARP_PEERS="$WARP_DIR/peers.list"
+WARP_BACKEND_FILE="/etc/awg-warp-backend"
+WARP_AUTOSTART_SCRIPT="$WARP_DIR/warp-autostart.sh"
+WARP_HEALTH_SCRIPT="/usr/local/bin/awg-warp-healthcheck.sh"
+WARP_HEALTH_LOG="/var/log/awg-warp-health.log"
+WARPSCOUT_BIN="/usr/local/bin/warpscout"
+WARPSCOUT_DIR="/etc/warpscout"
+WARPSCOUT_ACCOUNT="$WARPSCOUT_DIR/warpscout-account.json"
+USQUE_DIR="/etc/usque"
+USQUE_CONF="$USQUE_DIR/config.json"
+USQUE_BIN="/usr/local/bin/usque"
+USQUE_UP_HOOK="$USQUE_DIR/on-connect.sh"
+USQUE_DOWN_HOOK="$USQUE_DIR/on-disconnect.sh"
+USQUE_SYSCTL="/etc/sysctl.d/99-awg-usque.conf"
+USQUE_LOG="/var/log/awg-usque.log"
+USQUE_FALLBACK_VER="4.2.1"
+WGCF_FALLBACK_VERS=(2.2.30 2.2.29 2.2.28)
+
+DNS_PROXY_ADDR="127.0.2.1"
+DNS_PROXY_PORT=53
+DNS_PROXY_CONF="/etc/dnscrypt-proxy/dnscrypt-proxy.toml"
+DNS_PROXY_STATE="/etc/dnscrypt-proxy/awg.state"
+DNS_RESOLVERS_MD="/var/cache/dnscrypt-proxy/public-resolvers.md"   # кэш списка резолверов dnscrypt-proxy
+DNS_PROXY_BACKUP_CONF="/etc/dnscrypt-proxy/dnscrypt-proxy.toml.awg-backup"
+DNS_PERSIST_SCRIPT="/usr/local/bin/awg-dns-persist.sh"
+DNS_HEALTH_SCRIPT="/usr/local/bin/awg-dns-healthcheck.sh"
+DNS_HEALTH_LOG="/var/log/awg-dns-health.log"
+DNS_SYSCTL="/etc/sysctl.d/99-awg-dns.conf"
+
+CASCADE_DIR="/etc/awg-cascade"
+CASCADE_RULES="$CASCADE_DIR/rules.conf"
+CASCADE_TAG="awg-cascade"
+CASCADE_SCRIPT="/usr/local/bin/awg-cascade-apply.sh"
+CASCADE_LOG="/var/log/awg-cascade.log"
+CASCADE_UFW_BACKUP="$CASCADE_DIR/ufw-backup/ufw.default.original"
+UFW_DEFAULTS="/etc/default/ufw"   # политики UFW (DEFAULT_FORWARD_POLICY)
+
+XRAY_DIR="/etc/xray"
+XRAY_CONF="$XRAY_DIR/config.json"
+XRAY_STATE="$XRAY_DIR/state"
+XRAY_PEERS="$XRAY_DIR/peers.list"
+XRAY_BIN="/usr/local/bin/xray"
+XRAY_ASSET_DIR="/usr/local/bin"
+XRAY_IF="xray0"
+XRAY_TUN_ADDR="172.16.250.1/30"
+XRAY_SOCKS="127.0.0.1:10808"
+XRAY_UNIT="awg-xray.service"
+XRAY_TUN_UNIT="awg-xray-tun.service"
+XRAY_ROUTING_UNIT="awg-xray-routing.service"
+# Трафик через выход Xray не идёт — что проверить (журнал, статус, включение)
+XRAY_CHECK_HINT="проверь ссылку выхода: она могла устареть или сервер выхода недоступен — «Диагностика» покажет, какой выход не отвечает"
+XRAY_ROUTING_SCRIPT="/usr/local/bin/awg2-xray-routing.sh"
+XRAY_RUGEO_URL="https://github.com/runetfreedom/russia-v2ray-rules-dat/releases/latest/download"
+
+T2S_BIN="/usr/local/bin/tun2socks"
+T2S_DIR="/etc/tun2socks"
+T2S_CONF="$T2S_DIR/proxy.txt"
+T2S_IF="tun0"
+T2S_ADDR="10.30.1.1/24"
+T2S_UNIT="awg-tun2socks.service"
+T2S_ROUTING_SCRIPT="/usr/local/bin/awg2-tun2socks-routing.sh"
+
+EXITS_DIR="$AWG_DIR"
+EXITS_PEERS="$EXITS_DIR/exits_peers.list"
+EXITS_STATE="$EXITS_DIR/exits_state"
+EXITS_UNIT="awg-exits-routing.service"
+EXITS_SCRIPT="/usr/local/bin/awg2-exits-routing.sh"
+# Сторож exit-нод: проба через ноду раз в 30 с; упала — 3 провала подряд
+# (интерфейс пропал — сразу), вернулась — 2 удачи. Состояние — в /run: после
+# перезагрузки ноды проверяются заново, а не числятся упавшими по старой памяти
+EXITS_HEALTH_DIR="/run/awg2-exits-health" EXITS_LOCK="/run/awg2-exits.lock"
+EXITS_HEALTH_LOG="/var/log/awg2-exits-health.log"
+EXITS_HEALTH_UNIT="awg2-exits-health.service" EXITS_HEALTH_TIMER="awg2-exits-health.timer"
+EXITS_HC_FAILS=3 EXITS_HC_OKS=2 EXITS_HC_TARGETS="1.1.1.1 8.8.8.8"
+EXITS_HC_URL="http://cp.cloudflare.com/generate_204"
+
+# ── Срок действия клиентов ────────────────────────────────
+EXPIRE_BIN="/usr/local/bin/awg2-expire-check"
+EXPIRE_STATE_DIR="/var/lib/awg2-expire"
+EXPIRE_LOG="/var/log/awg2-expire.log"
+EXPIRE_SUSPEND_IP="127.0.0.2/32"
+TRAFFIC_DB="$STATE_DIR/traffic.json"          # трафик клиентов по дням (таймер сроков)
+
+# ── WG + обфускатор ───────────────────────────────────────
+WGOBF_VERSION="v1.6"
+WGOBF_COMMIT="6440304054a27158b6d373545925880f0e51bafb"
+WGOBF_REPO="https://github.com/ClusterM/wg-obfuscator.git"
+WGOBF_IF="wgobf0"
+WGOBF_DIR="/etc/awg-wgobf"
+WGOBF_STATE="$WGOBF_DIR/state"
+WGOBF_OBF_CONF="$WGOBF_DIR/obfuscator.conf"
+WGOBF_WG_CONF="/etc/wireguard/${WGOBF_IF}.conf"
+WGOBF_LIB="/usr/local/lib/awg2"
+WGOBF_BIN="$WGOBF_LIB/wg-obfuscator"
+WGOBF_FW="$WGOBF_LIB/wgobf-fw.sh"
+WGOBF_AA_DIR="/etc/apparmor.d"   # профиль wg-quick (Ubuntu 25.10+) и его local-дополнение
+WGOBF_UNIT="awg-wgobf.service"
+WGOBF_CLIENTS="/root/wgobf"
+WGOBF_TAG="awg-wgobf"
+WGOBF_MTU=1380
+
+# ── Telegram-бот ──────────────────────────────────────────
+BOT_CONF="/etc/awg-bot.conf"
+BOT_ADMINS="/var/lib/awg-bot/admins.json"   # приглашённые админы (ведёт бот)
+BOT_DIR="/opt/awg-bot"
+BOT_UNIT="awg-bot.service"
+# Веб-панель (awgbot.web): конфиг с хешем пароля, журнал входов, самоподписанный сертификат
+WEB_CONF="/etc/awg-web.conf"
+WEB_UNIT="awg-web.service"
+WEB_LOG="/var/log/awg-web.log"
+WEB_DIR="/etc/awg-web"
+WEB_FW_SCRIPT="/usr/local/bin/awg2-web-fw"   # правило доступа к порту панели (по адресам / через VPN)
+WEB_NETS_FILE="$WEB_DIR/access.nets"          # кому можно — его же проверяет сама панель
+WEB_SET="awg2-web"; WEB_SET6="awg2-web6"; WEB_FW_TAG="awg2-webacl"
+WEB_FW_UNIT="awg2-web-fw.service"           # то же правило при загрузке — раньше UFW и netfilter-persistent
+BOT_PROXY_SCHEMES="http https socks4 socks5 socks5h iface"
+WEBAPP_PORT_DEFAULT=8443                    # Mini App бота (WEBAPP_PORT в BOT_CONF)
+
+# ── HTTPS-сертификат (Let's Encrypt через acme.sh) ───────
+CERT_DIR="/etc/awg2/cert"
+CERT_FULL="$CERT_DIR/fullchain.pem"
+CERT_KEY="$CERT_DIR/key.pem"
+CERT_STATE="$STATE_DIR/cert"                # kind=ip|domain, name=адрес
+ACME_DIR="/usr/local/lib/awg2/acme.sh"      # код acme.sh
+ACME_HOME="/var/lib/awg2/acme"              # аккаунт и сертификаты acme.sh
+CERT_SERVICE="awg2-cert.service"
+CERT_TIMER="awg2-cert.timer"
+CERT_TAG="awg2-cert"
+
+# ── Антисканер (сети сканеров РКН и госорганов — DROP новых входящих) ──
+ANTISCAN_DIR="$STATE_DIR/antiscan"          # списки, исключения, состояние
+ANTISCAN_CONF="$ANTISCAN_DIR/antiscan.conf" # ON, LISTS, UPDATED, ERROR, ENTRIES, ADDRS
+ANTISCAN_ALLOW="$ANTISCAN_DIR/allow"        # исключения: адрес или подсеть в строке
+ANTISCAN_SCRIPT="/usr/local/bin/awg2-antiscan"
+ANTISCAN_LOG="/var/log/awg2-antiscan.log"
+ANTISCAN_SET="awg2-antiscan" ANTISCAN_SET6="awg2-antiscan6" ANTISCAN_TAG="awg2-antiscan"
+ANTISCAN_UNIT="awg2-antiscan.service" ANTISCAN_TIMER="awg2-antiscan-update.timer"
+ANTISCAN_SRC="https://raw.githubusercontent.com/shadow-netlab/traffic-guard-lists/refs/heads/main/public"
+# Предел охвата одного списка. Настоящие: ~310 тыс. адресов IPv4 (самая широкая
+# запись /19) и ~20 сетей /32 IPv6. Подменённый источник с тысячами /12 прошёл бы
+# проверку записей, но закрыл бы почти весь IPv4 — такой список не принимается
+ANTISCAN_MAX4=16777216 ANTISCAN_MAX6=4096   # 2^24 адресов IPv4; 2^12 сетей /32 IPv6 (записи /32 и шире)
+
+# ── VK и Max мимо VPN (сети VK — DROP трафика клиентов VPN) ──
+VKBLOCK_DIR="$STATE_DIR/vkblock"            # список и состояние
+VKBLOCK_CONF="$VKBLOCK_DIR/vkblock.conf"    # ON, UPDATED, ERROR, ENTRIES
+VKBLOCK_SCRIPT="/usr/local/bin/awg2-vkblock"
+VKBLOCK_LOG="/var/log/awg2-vkblock.log"
+VKBLOCK_SET="awg2-vk" VKBLOCK_SET6="awg2-vk6" VKBLOCK_TAG="awg2-vkblock"
+VKBLOCK_UNIT="awg2-vkblock.service" VKBLOCK_TIMER="awg2-vkblock-update.timer"
+VKBLOCK_SRC="https://raw.githubusercontent.com/C24Be/AS_Network_List/main/blacklists/blacklist-vk.txt"
+# Настоящий список: ~200 записей, ~300 тыс. адресов IPv4 и три сети /29 IPv6.
+# Короче минимума — оборван, шире предела — подменён: прежний не заменяют
+VKBLOCK_MIN=50 VKBLOCK_MAX4=4194304 VKBLOCK_MAX6=4096   # 2^22 адресов IPv4; 2^12 сетей /32 IPv6
+
+# ── РФ напрямую (клиенты в туннеле — к сетям России мимо него) ──
+RUDIRECT_DIR="$STATE_DIR/rudirect"           # список РФ и состояние
+RUDIRECT_CONF="$RUDIRECT_DIR/rudirect.conf"  # ON, UPDATED, ERROR, ENTRIES, SRC
+RUDIRECT_USER="/etc/awg2/rudirect"           # свои списки (в бэкапе): direct.list, tunnel.list
+RUDIRECT_SCRIPT="/usr/local/bin/awg2-rudirect"
+RUDIRECT_LOG="/var/log/awg2-rudirect.log"
+RUDIRECT_SET="awg2-ru" RUDIRECT_TAG="awg2-rudirect"
+# Метка в старших битах: младшие заняты чужими (wg-quick — 51820)
+RUDIRECT_MARK="0x52550000/0xffff0000" RUDIRECT_PRIO=90     # приоритет раньше туннелей (100-249)
+RUDIRECT_RPF="/proc/sys/net/ipv4/conf"                # rp_filter аплинка: строгий ломает ответы
+# «Telegram напрямую» — подсети Telegram (core.telegram.org/resources/cidr.txt)
+RUDIRECT_TG_NETS="149.154.160.0/20 91.108.4.0/22 91.108.8.0/22 91.108.12.0/22 91.108.16.0/22 91.108.20.0/22 91.108.56.0/22 91.105.192.0/23 185.76.151.0/24"
+RUDIRECT_UNIT="awg2-rudirect.service" RUDIRECT_TIMER="awg2-rudirect-update.timer"
+RUDIRECT_SRCS="https://raw.githubusercontent.com/ipverse/rir-ip/master/country/ru/ipv4-aggregated.txt https://www.ipdeny.com/ipblocks/data/aggregated/ru-aggregated.zone"
+# Настоящий список: ~8700 сетей, ~45 млн адресов IPv4. Короче или уже — оборван,
+# шире — подменён: прежний не заменяют. Своих записей — не больше 500
+RUDIRECT_MIN=2000 RUDIRECT_MINADDR=20000000 RUDIRECT_MAX4=134217728 RUDIRECT_USER_MAX=500
+
+# ── Если туннель упал (режим на каждый туннель: напрямую или блокировать) ──
+TUNFAIL_CONF="/etc/awg2/tunnel-fail.conf"    # warp=block, xray=direct… (нет строки — direct)
+TUNFAIL_SCRIPT="/usr/local/bin/awg2-tunfail"
+TUNFAIL_LOG="/var/log/awg2-tunfail.log"
+TUNFAIL_UNIT="awg2-tunfail.service" TUNFAIL_TIMER="awg2-tunfail.timer"
+
+# Интерфейсы, которые поднимает сам awg2: их адрес не может быть Endpoint
+# клиента, и маршрут через них — не аплинк сервера.
+OWN_IFACES=" ${AWG_IF} awg3vds ${WARP_IF} xray0 tun0 wgcf wgobf0 "
+# GitHub в части сетей режут — релизы качаются и через зеркала.
+GH_MIRRORS=("" "https://ghproxy.net/" "https://gh-proxy.com/" "https://mirror.ghproxy.com/")
